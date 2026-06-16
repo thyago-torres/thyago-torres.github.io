@@ -1,4 +1,38 @@
-const COLUMNS = [
+const OLD_COLUMNS = [
+    "Tenet",
+    "Worker (Full Name)",
+    "Employee ID",
+    "Enterprise ID",
+    "Hire Date",
+    "Enterprise ID Status",
+    "Maquina",
+    "Chamado",
+    "Serial bipado",
+    "SERIAL",
+    "Nota Fiscal / Declaração",
+    "Analista",
+    "Location",
+    "PC Configuration Location",
+    "Status Equipamento",
+    "Refletiu no FNMS?",
+    "Entrega",
+    "Horario Agendamento",
+    "DATA Agendamento",
+    "Absorção de contractor",
+    "Home Office",
+    "Transporte",
+    "CPF",
+    "Cargo Folha",
+    "E-mail pessoal",
+    "Mobile Phone",
+    "Cost Center Code",
+    "Address 1",
+    "City of residence",
+    "State/Province of residence",
+    "CEP"
+];
+
+const NEW_COLUMNS = [
     "Tenet",
     "Worker (Full Name)",
     "Employee ID",
@@ -34,6 +68,16 @@ const COLUMNS = [
     "CEP"
 ];
 
+function detectFormat(cells) {
+    if (cells[18] && cells[18].trim().toLowerCase() === 'transporte') {
+        return 'new';
+    }
+    if (cells[16] && cells[16].trim().toLowerCase() === 'transporte') {
+        return 'old';
+    }
+    return cells.length >= 33 ? 'new' : 'old';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const emptyState = document.getElementById('empty-state');
     const resultsContainer = document.getElementById('results');
@@ -50,22 +94,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Escuta o evento de 'paste' (Ctrl+V) em qualquer lugar do documento
     document.addEventListener('paste', (event) => {
-        // Previne qualquer comportamento padrão indesejado (como colar numa caixa de texto inexistente)
         event.preventDefault();
-
-        // Pega os dados do clipboard como texto
         const pastedText = (event.clipboardData || window.clipboardData).getData('text');
-
         if (!pastedText) return;
-
         processPastedData(pastedText);
     });
 
     function processPastedData(text) {
-        // Divide o texto por quebras de linha para pegar todas as linhas copiadas
-        // Remove linhas vazias
         const rows = text.trim().split(/\r?\n/).filter(row => row.trim() !== '');
-
         if (rows.length === 0) return;
 
         // Esconde o card de aviso inicial e mostra a barra de ação
@@ -75,20 +111,37 @@ document.addEventListener('DOMContentLoaded', () => {
         // Limpa a tela para os novos resultados
         resultsContainer.innerHTML = '';
 
-        // Filtra apenas as linhas onde a coluna 19 (Entrega, índice 18) é "Transporte"
+        // Filtra apenas as linhas onde a coluna de entrega é "Transporte" (dinamicamente)
         const filteredRows = rows.filter(row => {
             const cells = row.split('\t');
-            return cells[18] && cells[18].trim().toLowerCase() === 'transporte';
+            const format = detectFormat(cells);
+            const entregaIndex = format === 'new' ? 18 : 16;
+            return cells[entregaIndex] && cells[entregaIndex].trim().toLowerCase() === 'transporte';
         });
 
         // Atualiza contador
         resultsCount.textContent = `${filteredRows.length} ${filteredRows.length === 1 ? 'registro carregado' : 'registros carregados'}`;
 
+        if (rows.length > 0 && filteredRows.length === 0) {
+            // Exibe mensagem de feedback se nenhum registro com 'Transporte' for encontrado
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'warning-message';
+            warningDiv.style.color = '#fbbf24';
+            warningDiv.style.padding = '1.5rem';
+            warningDiv.style.marginTop = '1rem';
+            warningDiv.style.background = 'rgba(245, 158, 11, 0.1)';
+            warningDiv.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+            warningDiv.style.borderRadius = '12px';
+            warningDiv.style.lineHeight = '1.6';
+            warningDiv.innerHTML = `⚠️ <strong>Nenhum registro com entrega 'Transporte' foi encontrado</strong> entre as ${rows.length} linhas coladas.<br>
+            <span style="font-size: 0.9rem; color: #94a3b8;">Verifique se a coluna de entrega contém o valor "Transporte" (a busca é case-insensitive).</span>`;
+            resultsContainer.appendChild(warningDiv);
+            return;
+        }
+
         // Processa cada linha
         filteredRows.forEach((row, index) => {
-            // O excel separa as colunas por tabulação (\t)
             const cells = row.split('\t');
-
             createRowCard(cells, index);
         });
     }
@@ -98,9 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
         card.className = 'row-card';
         card.style.animationDelay = `${index * 0.15}s`;
 
+        const format = detectFormat(cells);
+        const columns = format === 'new' ? NEW_COLUMNS : OLD_COLUMNS;
+
         // Cria um dicionário com todos os dados mapeados NO INÍCIO para ser modificado
         const dataObj = {};
-        COLUMNS.forEach((col, i) => {
+        columns.forEach((col, i) => {
             dataObj[col] = cells[i] ? cells[i].trim() : '';
         });
 
@@ -109,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
         header.className = 'row-header';
 
         const title = document.createElement('h3');
-        // Usa a primeira coluna (Worker) como título do card, se existir
         const name = dataObj["Worker (Full Name)"] ? dataObj["Worker (Full Name)"] : `Colaborador ${index + 1}`;
         title.textContent = name;
 
@@ -120,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
         copyBtn.textContent = 'Copiar Dados';
         copyBtn.onclick = () => {
             let textToCopy = `Dados de ${name}:\n\n`;
-            COLUMNS.forEach((col) => {
+            columns.forEach((col) => {
                 const val = dataObj[col] ? dataObj[col] : 'N/A';
                 textToCopy += `${col}: ${val}\n`;
             });
@@ -213,7 +268,6 @@ Fantasia: Urus Logistics`;
         header.appendChild(actions);
         card.appendChild(header);
         
-        // Adiciona o container do Excel logo após o header
         card.appendChild(excelContainer);
 
         const IMPORTANT_COLUMNS = [
@@ -232,10 +286,9 @@ Fantasia: Urus Logistics`;
         otherGrid.className = 'fields-grid other-grid';
         otherGrid.style.display = 'none';
 
-        // Objeto para guardar as referências dos valores no DOM, permitindo atualizações
         const fieldElements = {};
 
-        COLUMNS.forEach((colName) => {
+        columns.forEach((colName) => {
             const value = dataObj[colName];
 
             const fieldItem = document.createElement('div');
@@ -255,16 +308,12 @@ Fantasia: Urus Logistics`;
             fieldItem.appendChild(label);
             fieldItem.appendChild(valSpan);
 
-            // Funcionalidade de copiar ao clicar no item
             fieldItem.onclick = (e) => {
                 e.stopPropagation();
-                // pega o valor atualizado do DOM e não o inicial
                 const currentVal = valSpan.textContent !== 'Vazio' ? valSpan.textContent : '';
                 if (!currentVal) return;
 
                 navigator.clipboard.writeText(currentVal).then(() => {
-                    // Feedback visual temporário
-                    const originalBg = fieldItem.style.background;
                     fieldItem.classList.add('copied-flash');
                     setTimeout(() => {
                         fieldItem.classList.remove('copied-flash');
@@ -307,7 +356,6 @@ Fantasia: Urus Logistics`;
 
         resultsContainer.appendChild(card);
         
-        // Dispara a busca do CEP de forma assíncrona
         fetchCepAndUpdate(dataObj, fieldElements, importantGrid);
     }
 
@@ -336,19 +384,15 @@ Fantasia: Urus Logistics`;
             }
             
             const address1 = dataObj['Address 1'] || '';
-            // Ignora se o bairro já está contido no Address 1 (case insensitive)
             if (address1.toLowerCase().includes(bairro.toLowerCase())) {
                 addInfoField(importantGrid, 'Aviso de CEP', 'Bairro já descrito no endereço', 'info-field');
             } else {
-                // Adiciona o bairro ao endereço
                 const novoEndereco = address1 ? `${address1}, ${bairro}` : bairro;
                 dataObj['Address 1'] = novoEndereco;
                 
-                // Atualiza o valor visualmente
                 if (fieldElements['Address 1']) {
                     fieldElements['Address 1'].textContent = novoEndereco;
                     fieldElements['Address 1'].classList.remove('empty');
-                    // Efeito de destaque no item
                     fieldElements['Address 1'].parentElement.classList.add('copied-flash');
                     setTimeout(() => {
                         fieldElements['Address 1'].parentElement.classList.remove('copied-flash');
@@ -375,7 +419,6 @@ Fantasia: Urus Logistics`;
         fieldItem.appendChild(label);
         fieldItem.appendChild(valSpan);
         
-        // Insere o campo no começo do grid importante
         if (grid.firstChild) {
             grid.insertBefore(fieldItem, grid.firstChild);
         } else {
