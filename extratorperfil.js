@@ -185,8 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 source_UF = "PB";
             } else if (loc.includes('belém') || loc.includes('belem')) {
                 source_from = "Belém - PC (CESUPA)";
-                source_cep = "ADD CEP";
-                source_adress = "ADD ENDEREÇO";
+                source_cep = "66040-020";
+                source_adress = "Alcindo Cacela, 1523, Bairro Nazaré";
                 source_UF = "PA";
             }
 
